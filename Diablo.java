@@ -4,85 +4,150 @@ import java.util.Vector;
 
 import robocode.*;
 
-public class Diablo extends TeamRobot {
-	private RobotsInfo enemiesInfo;
-	private RobotsInfo friendsInfo;
+public class Diablo extends TeamRobot 
+{
+	private RobotsInfo enemiesInfo = new RobotsInfo(this);
+	private RobotsInfo friendsInfo = new RobotsInfo(this);
 	private double PI = Math.PI;
-	private int radarDirection=1;
-
+	private int radarDirection = 1;
+	
 	public void run () {
+		this.setBodyColor(java.awt.Color.GREEN);
 		setAdjustRadarForGunTurn(true);
-		//setTurnRadarRightRadians(2*PI);
+		//turnRadarRightRadians(2*PI);
 		enemiesInfo = new RobotsInfo(this);
 		friendsInfo = new RobotsInfo(this);
-		//addCustomEvent(new RadarTurnCompleteCondition(this));
 		while(true) {
 			//setTurnRadarLeftRadians(2*PI);
 			sweep();
-			//processScannedRobots();
 			antiGravMove();
-			//chooseEnemyToFire();
+			chooseEnemyToFire();
 			//setAhead(10);
 			execute();
 		}
 	}
 	
 	public void onScannedRobot(ScannedRobotEvent e){
-		out.println("OnScannedRobot");
-		
-		enemiesInfo.addRobotEvent(e);
-		out.println("scanned enemy");
+		if (this.isTeammate(e.getName()))
+			friendsInfo.addRobotEvent(e);
+		else	{
+			enemiesInfo.addRobotEvent(e);
+			System.out.println("Enemy " + e.getName() + " scanned");
+		}
+	}
+	
+	public void onRobotDeath(RobotDeathEvent e) {
+		if (this.isTeammate(e.getName()))
+			friendsInfo.updateRobotDeath(e);
+		else
+			enemiesInfo.updateRobotDeath(e);
 	}
 	
 	private void chooseEnemyToFire() {
-		this.setTurnRadarLeftRadians(PI/4);
 		RobotsInfo.Enemy closestEnemy;
-
+		//this.setTurnRadarRightRadians(PI/4);
 		closestEnemy = enemiesInfo.getClosestRobot();
-		if (closestEnemy == null)
+		
+		if (closestEnemy == null || !closestEnemy.live) {
+			if (closestEnemy != null)
+				System.out.println("closestEnemy " + closestEnemy.name + " is dead");
 			return;
+		}
+		//System.out.println("closest enemy is " + closestEnemy.name);
+		CircularIntercept interception = new CircularIntercept(); 
+		
+		interception.calculate(getX(), getY(), closestEnemy.x, closestEnemy.y,
+				Math.toDegrees(closestEnemy.heading), closestEnemy.speed, 2, Math.toDegrees(closestEnemy.changehead));
+		
+		double gun_bearing = robocode.util.Utils.normalRelativeAngleDegrees(interception.bulletHeading_deg - this.getGunHeading());// Math.toDegrees(RoboUtils.normaliseBearing(Math.toRadians()));
+		
+		this.setTurnGunRight(gun_bearing);
 
-		System.out.println("closest enemy found: " + closestEnemy.name);
+		//System.out.println("closest enemy found: " + closestEnemy.name);
+		//System.out.println("closest impact point: " + interception.impactPoint.x + ", " + interception.impactPoint.y);
 		
 		if (getGunHeat() == 0) {
-		       double firePower = Math.min(500 / closestEnemy.distance, 3);
+		       /*double firePower = Math.min(500 / closestEnemy.distance, 3);
 		       // calculate speed of bullet
 		       double bulletSpeed = 20 - firePower * 3;
 		       // distance = rate * time, solved for time
-		       long time = (long)(closestEnemy.distance / bulletSpeed);
-		       
-		      /* double futureX = closestEnemy.getFutureX(time);
-		       double futureY = closestEnemy.getFutureY(time);
-		       double absDeg = absoluteBearing(getX(), getY(), futureX, futureY);
-		       // turn the gun to the predicted x,y location
-		       setTurnGunRight(normalizeBearing(absDeg - getGunHeading()));*/
-		       
-		       Bullet bullet = this.setFireBullet(2);//set(Rules.MAX_BULLET_POWER);
-		       System.out.println("atirou");
-
-
-		       // Get the velocity of the bullet
-		       if (bullet != null) {
-		           double bulletVelocity = bullet.getVelocity();
+		       long time = (long)(closestEnemy.distance / bulletSpeed);*/
+			System.out.println("GunHeat = 0");
+			System.out.println("Gun_bearing = " + gun_bearing);
+		       if (Math.abs(gun_bearing) <= interception.angleThreshold) {
+		    	   System.out.println("gun_bearing < threshold");
+		    	   if (	 (interception.impactPoint.x > 0) &&
+		    			 (interception.impactPoint.x < getBattleFieldWidth()) &&
+		    			 (interception.impactPoint.y > 0) &&
+		    			 (interception.impactPoint.y < getBattleFieldHeight())
+		    		  ) {
+		    			    // Ensure that the predicted impact point is within 
+		    			    // the battlefield
+		    		   		Bullet bullet = this.setFireBullet(2);
+		    		   		System.out.println("atirou");
+		    			  }
 		       }
 		   }
 		}
-		
 	
-	private void processScannedRobots() {
-		Vector<ScannedRobotEvent> events = this.getScannedRobotEvents();
-		System.out.println(events.size());
-		Iterator<ScannedRobotEvent> it = events.iterator();
-		//System.out.println("processing scanned robots");
-		while(it.hasNext()) {
-			System.out.println("next iteration");
-			ScannedRobotEvent event = it.next();
-
-			//enemiesInfo.addRobotEvent(event);
-			System.out.println("scanned enemy");
-			
-		}
-	}
+	static int rounds;
+	static int notChangedDirection;
+	
+	private void sweep() {
+	     //enemiesInfo.printHash();
+	     int number_of_robots = getOthers();
+	     
+	     
+	     if (number_of_robots > 1){    
+	        if(enemiesInfo.readedRobots < number_of_robots - notChangedDirection) {
+	            rounds++;
+	        }else {
+	            
+	            enemiesInfo.clearHash();
+	            notChangedDirection = 0;
+	            if (number_of_robots > 2 && rounds * 20 < 270)
+	                radarDirection = (radarDirection == 1) ? 0 : 1;     
+	            else if (number_of_robots == 2 && rounds * 20 < 180)
+	                radarDirection = (radarDirection == 1) ? 0 : 1;
+	            else
+	            	notChangedDirection = 1;
+	            
+	        
+	            rounds = 0;
+	        }
+	     }
+	     else {
+	    	 if (enemiesInfo.readedRobots  == 1) {
+	    		 radarDirection = (radarDirection == 1) ? 0 : 1;
+	    		 notChangedDirection = 0;
+	    		 enemiesInfo.clearHash();
+	    	 }
+	     }
+	     //sniper_code() // <------------ pega aquele codigo
+	     if(radarDirection == 1) {
+             this.setTurnRadarRight(20);
+         }
+         else {
+             this.setTurnRadarLeft(20);
+         }
+	    }
+	
+	
+	/*private void sweep() {
+		  //enemiesInfo.printHash();
+		  int number_of_robots = getOthers(); 
+		 
+		  if(enemiesInfo.readedRobots >= number_of_robots) {
+			  enemiesInfo.clearHash();
+			  radarDirection = (radarDirection == 1) ? 0 : 1;
+		  }
+		  if(radarDirection == 1) {
+			  this.setTurnRadarRight(20);
+		  }
+		  else {
+			  this.setTurnRadarLeft(20);
+		  } 
+	}*/
 	
 	private int midpointcount = 0;			//Number of turns since that strength was changed.
 	private double midpointstrength = 0;	//The strength of the gravity point in the middle of the field
@@ -99,7 +164,7 @@ public class Diablo extends TeamRobot {
 	    //cycle through all the enemies.  If they are alive, they are repulsive.  Calculate the force on us
 		while (e.hasNext()) {
     	    en = (RobotsInfo.Enemy)e.next();
-//			if (en.live) {
+			if (en.live) {
     	    double enX, enY;
     	    double absbearing_rad = (getHeadingRadians()+en.bearing)%(2*PI);
     	    enX = getX()+Math.sin(absbearing_rad)*en.distance;
@@ -111,8 +176,27 @@ public class Diablo extends TeamRobot {
 		        //Add the components of this force to the total force in their respective directions
 		        xforce += Math.sin(ang) * force;
 		        yforce += Math.cos(ang) * force;
-//			}
+			}
 	    }
+		
+    	Iterator<RobotsInfo.Enemy> f = friendsInfo.getMapIterator();
+    	while (f.hasNext()) {
+    	    en = (RobotsInfo.Enemy)f.next();
+			if (en.live) {
+    	    double enX, enY;
+    	    double absbearing_rad = (getHeadingRadians()+en.bearing)%(2*PI);
+    	    enX = getX()+Math.sin(absbearing_rad)*en.distance;
+    	    enY = getY()+Math.cos(absbearing_rad)*en.distance;
+				p = new GravPoint(enX,enY, -1000);
+		        force = p.power/Math.pow(RoboUtils.getRange(getX(),getY(),p.x,p.y),2);
+		        //Find the bearing from the point to us
+		        ang = RoboUtils.normaliseBearing(Math.PI/2 - Math.atan2(getY() - p.y, getX() - p.x)); 
+		        //Add the components of this force to the total force in their respective directions
+		        xforce += Math.sin(ang) * force;
+		        yforce += Math.cos(ang) * force;
+			}
+	    }
+		
 	    
 		/**The next section adds a middle point with a random (positive or negative) strength.
 		The strength changes every 5 turns, and goes between -1000 and 1000.  This gives a better
@@ -169,25 +253,13 @@ public class Diablo extends TeamRobot {
 	    return dir;
 	}
 	
-	 
-	private void sweep() {
-	  enemiesInfo.printHash();
-	  int number_of_robots = getOthers(); 
-	 
-	  if(enemiesInfo.readedRobots < number_of_robots) {
-		  if(radarDirection == 1) {
-			  this.setTurnRadarRight(20);
-		  }
-		  else {
-			  this.setTurnRadarLeft(20);
-		  }
-	  }else {
-		  
-		  enemiesInfo.clearHash();
-		  radarDirection = (radarDirection == 1) ? 0 : 1;		  
-	  }
-	  
+	
+	class GravPoint {
+	    public double x,y,power;
+	    public GravPoint(double pX,double pY,double pPower) {
+	        x = pX;
+	        y = pY;
+	        power = pPower;
+	    }
 	}
-
-
 }

@@ -58,8 +58,6 @@ public class RoboUtils {
 		return 0;
 	}
 	
-	public static int sign (double value) {
-		return (int) (value/Math.abs(value));
-	}
+
 
 }

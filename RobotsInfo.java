@@ -5,6 +5,7 @@ import java.util.Iterator;
 import java.util.Map;
 
 import robocode.AdvancedRobot;
+import robocode.RobotDeathEvent;
 import robocode.ScannedRobotEvent;
 
 
@@ -14,7 +15,7 @@ public class RobotsInfo {
 		public String name;
 		public double bearing,heading,speed,x,y,distance,changehead;
 		public long ctime; 		//
-		public boolean live;                
+		public boolean live;
 		public boolean readed;
 		public Point2D.Double guessPosition(long when) {
 			double diff = when - ctime;
@@ -23,14 +24,13 @@ public class RobotsInfo {
 			
 			return new Point2D.Double(newX, newY);
 		}
-		
-		
 	}
 	
 	private Map<String, Enemy> mapaNomes;
 	private Enemy closestRobot;
 	private AdvancedRobot self;
 	public int readedRobots = 0;
+
 	
 	RobotsInfo(AdvancedRobot me) {
 		self = me;
@@ -40,49 +40,26 @@ public class RobotsInfo {
 	}
 	
 	public int GetMapSize() {
-		return this.mapaNomes.size();
+		return mapaNomes.size();
 	}
+	
 	public Enemy getRobot(String name) {
 		return mapaNomes.get(name);
 	}
 	
 	public Enemy getClosestRobot() {
-		if (closestRobot == null)
-			return null;
-		return closestRobot;
+		return closestRobot;			
 	}
 	
 	public Iterator<Enemy> getMapIterator() {
 		return mapaNomes.values().iterator();
 	}
 	
-	public void printHash() {
-		Collection<Enemy> values = mapaNomes.values();
-		Iterator<Enemy> it = values.iterator();
-		while(it.hasNext()) {
-			Enemy aux = it.next();
-			System.out.print(aux.readed + " ");
-			//aux.readed = false;
-		}
-		System.out.println();
-	}
-	
-	public void clearHash() {
-		this.readedRobots = 0;
-		Collection<Enemy> values = mapaNomes.values();
-		Iterator<Enemy> it = values.iterator();
-		System.out.println("clear hash");
-		while(it.hasNext()) {
-			Enemy aux = it.next();
-			aux.readed = false;
-		}	
-	}
-	
 	public void addRobotEvent(ScannedRobotEvent event) {
 		// Add new robot or update existing entry
-		Enemy en = new Enemy();
-		//en.readed = false;
 		String robotName = event.getName();
+		Enemy en = new Enemy();
+		
 		if (mapaNomes.get(robotName) != null) {
 			en = mapaNomes.get(robotName);
 			if(!en.readed) {
@@ -91,8 +68,6 @@ public class RobotsInfo {
 			}
 		}
 		
-		System.out.println("Others: " + this.self.getOthers());
-		System.out.println("ReadedRobots: " + this.readedRobots);
 		double absbearing_rad = (self.getHeadingRadians()+event.getBearingRadians())%(2*RoboUtils.PI);
 		//this section sets all the information about our target
 		en.name = event.getName();
@@ -107,17 +82,14 @@ public class RobotsInfo {
 		en.speed = event.getVelocity();
 		en.distance = event.getDistance();	
 		en.live = true;
+
 		mapaNomes.put(robotName, en);
 		
 		if (closestRobot == null)
 			closestRobot = en;
-		else if (closestRobot.name == event.getName()) {
+		else {
 			// Recalcula o closestRobot
 			closestRobot = recalculateClosestRobot();
-		}
-		else if (en.distance < closestRobot.distance) {
-			// Update the closestRobot to the new one
-			closestRobot = en;			
 		}
 	}
 	
@@ -126,12 +98,39 @@ public class RobotsInfo {
 			return null;
 		Collection<Enemy> values = mapaNomes.values();
 		Iterator<Enemy> it = values.iterator();
-		Enemy minTemp = it.next();
+		Enemy minTemp = new Enemy();
+		minTemp.name = "NullTarget";
+		minTemp.distance = Double.MAX_VALUE;
 		while (it.hasNext()) {
 			Enemy robot = it.next();
-			if (robot.distance < minTemp.distance)
+			if (robot.live && robot.distance < minTemp.distance)
 				minTemp = robot;
 		}
 		return minTemp;
 	}
+	
+	public void clearHash() {
+		this.readedRobots = 0;
+		Collection<Enemy> values = mapaNomes.values();
+		Iterator<Enemy> it = values.iterator();
+		System.out.println("clear hash");
+		while(it.hasNext()) {
+			Enemy aux = it.next();
+			aux.readed = false;
+		}	
+	}
+	
+	public void updateRobotDeath(RobotDeathEvent event) {
+		Enemy en = getRobot(event.getName());
+		en.live = false;
+		System.out.println("robot " + event.getName() + " morreu e foi atualizado na hash.");
+		
+		if (closestRobot.name == en.name) {
+			System.out.println("closestRobot: " + closestRobot.name);
+			closestRobot.live = false;
+			closestRobot = recalculateClosestRobot();
+			System.out.println("recalculated closestRobot: " + closestRobot.name);
+		}
+	}
+
 }

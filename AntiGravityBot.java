@@ -6,7 +6,7 @@ import java.util.*;
 /**
  * AntiGravityBot - A robot by Alisdair Owens
  * Conventions in this bot include: Use of radians throughout
- * Storing absolute positions of Enemies bots rather than relative ones
+ * Storing absolute positions of enemy bots rather than relative ones
  * Very little code in events
  * These are all good programming practices for robocode
  * There may also be methods that arent used; these might just be useful for you.
@@ -16,8 +16,8 @@ public class AntiGravityBot extends TeamRobot
 	/**
 	 * run: SnippetBot's default behavior
 	 */
-	Hashtable targets;				//all Enemiess are stored in the hashtable
-	Enemies target;					//our current Enemies
+	Hashtable targets;				//all enemies are stored in the hashtable
+	Enemy target;					//our current enemy
 	final double PI = Math.PI;		//just a constant
 	int direction = 1;				//direction we are heading... 1 = forward, -1 = backwards
 	double firePower;				//the power of the shot we will be using
@@ -25,7 +25,7 @@ public class AntiGravityBot extends TeamRobot
 	int midpointcount = 0;			//Number of turns since that strength was changed.
 	public void run() {
 		targets = new Hashtable();
-		target = new Enemies();
+		target = new Enemy();
 		target.distance = 100000;						//initialise the distance so that we can select a target
 		setColors(Color.red,Color.blue,Color.green);	//sets the colours of the robot
 		//the next two lines mean that the turns of the robot, gun and radar are independant
@@ -37,7 +37,7 @@ public class AntiGravityBot extends TeamRobot
 			doFirePower();					//select the fire power to use
 			doScanner();					//Oscillate the scanner over the bot
 			doGun();
-			out.println(target.distance);	//move the gun to predict where the Enemies will be
+			out.println(target.distance);	//move the gun to predict where the enemy will be
 			//fire(firePower);
 			execute();						//execute all commands
 		}
@@ -56,11 +56,11 @@ public class AntiGravityBot extends TeamRobot
 	    double force;
 	    double ang;
 	    GravPoint p;
-		Enemies en;
+		Enemy en;
     	Enumeration e = targets.elements();
-	    //cycle through all the Enemiess.  If they are alive, they are repulsive.  Calculate the force on us
+	    //cycle through all the enemies.  If they are alive, they are repulsive.  Calculate the force on us
 		while (e.hasMoreElements()) {
-    	    en = (Enemies)e.nextElement();
+    	    en = (Enemy)e.nextElement();
 			if (en.live) {
 				p = new GravPoint(en.x,en.y, -1000);
 		        force = p.power/Math.pow(getRange(getX(),getY(),p.x,p.y),2);
@@ -132,12 +132,12 @@ public class AntiGravityBot extends TeamRobot
 		setTurnRadarLeftRadians(2*PI);
 	}
 	
-	/**Move the gun to the predicted next bearing of the Enemies**/
+	/**Move the gun to the predicted next bearing of the enemy**/
 	void doGun() {
 		long time = getTime() + (int)Math.round((getRange(getX(),getY(),target.x,target.y)/(20-(3*firePower))));
 		Point2D.Double p = target.guessPosition(time);
 		
-		//offsets the gun by the angle to the next shot based on linear targeting provided by the Enemies class
+		//offsets the gun by the angle to the next shot based on linear targeting provided by the enemy class
 		double gunOffset = getGunHeadingRadians() - (Math.PI/2 - Math.atan2(p.y - getY(), p.x - getX()));
 		setTurnGunLeftRadians(normaliseBearing(gunOffset));
 	}
@@ -200,11 +200,11 @@ public class AntiGravityBot extends TeamRobot
 	 * onScannedRobot: What to do when you see another robot
 	 */
 	public void onScannedRobot(ScannedRobotEvent e) {
-		Enemies en;
+		Enemy en;
 		if (targets.containsKey(e.getName())) {
-			en = (Enemies)targets.get(e.getName());
+			en = (Enemy)targets.get(e.getName());
 		} else {
-			en = new Enemies();
+			en = new Enemy();
 			//targets.put(e.getName(),en);
 		}
 		//the next line gets the absolute bearing to the point where the bot is
@@ -228,12 +228,12 @@ public class AntiGravityBot extends TeamRobot
 	}
 		
 	public void onRobotDeath(RobotDeathEvent e) {
-		Enemies en = (Enemies)targets.get(e.getName());
+		Enemy en = (Enemy)targets.get(e.getName());
 		en.live = false;		
 	}	
 }
 
-class Enemies {
+class Enemy {
 	/*
 	 * ok, we should really be using accessors and mutators here,
 	 * (i.e getName() and setName()) but life's too short.
@@ -241,7 +241,7 @@ class Enemies {
 	String name;
 	public double bearing,heading,speed,x,y,distance,changehead;
 	public long ctime; 		//game time that the scan was produced
-	public boolean live; 	//is the Enemies alive?
+	public boolean live; 	//is the enemy alive?
 	public Point2D.Double guessPosition(long when) {
 		double diff = when - ctime;
 		double newY = y + Math.cos(heading) * speed * diff;
