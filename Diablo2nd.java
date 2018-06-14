@@ -66,22 +66,7 @@ public class Diablo2nd extends TeamRobot {
 		       }
 		   }
 		}
-		
-	
-	private void processScannedRobots() {
-		Vector<ScannedRobotEvent> events = this.getScannedRobotEvents();
-		System.out.println(events.size());
-		Iterator<ScannedRobotEvent> it = events.iterator();
-		//System.out.println("processing scanned robots");
-		while(it.hasNext()) {
-			System.out.println("next iteration");
-			ScannedRobotEvent event = it.next();
 
-			//enemiesInfo.addRobotEvent(event);
-			System.out.println("scanned enemy");
-			
-		}
-	}
 	
 	private int midpointcount = 0;			//Number of turns since that strength was changed.
 	private double midpointstrength = 0;	//The strength of the gravity point in the middle of the field

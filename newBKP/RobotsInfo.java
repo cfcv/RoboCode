@@ -13,7 +13,7 @@ public class RobotsInfo {
 	
 	public class Enemy {
 		public String name;
-		public double bearing, heading, speed, x, y, distance, changehead;
+		public double bearing, heading, speed, x, y, distance, changehead, energy;
 		public long ctime; 		//
 		public boolean live;
 		public boolean readed;
@@ -81,6 +81,7 @@ public class RobotsInfo {
 		en.ctime = self.getTime();				//game time at which this scan was produced
 		en.speed = event.getVelocity();
 		en.distance = event.getDistance();	
+		en.energy = event.getEnergy();
 		en.live = true;
 
 		mapaNomes.put(robotName, en);
