@@ -20,9 +20,10 @@ public class Diablo extends TeamRobot
 		friendsInfo = new RobotsInfo(this);
 		while(true) {
 			//setTurnRadarLeftRadians(2*PI);
+			bulletsInfo.updateBullets();
 			sweep();
 			antiGravMove();
-			chooseEnemyToFire();
+			//chooseEnemyToFire();
 			//setAhead(10);
 			execute();
 		}
@@ -37,6 +38,7 @@ public class Diablo extends TeamRobot
 				double energyDiff = e.getEnergy() - en.energy;
 				if (energyDiff > 0.0 && energyDiff <= 3.0) { 
 					bulletsInfo.addBullet(e, energyDiff);
+					System.out.println("Enemy " + e.getName() + " shot");
 				}
 			}
 			enemiesInfo.addRobotEvent(e);
@@ -148,7 +150,7 @@ public class Diablo extends TeamRobot
 	    double yforce = 0;
 	    double force;
 	    double ang;
-	    GravPoint p;
+	    RoboUtils.GravPoint p;
 	    RobotsInfo.Enemy en;
     // AQUI TEM QUE PEGAR O DADO DO INIMIGO
     	Iterator<RobotsInfo.Enemy> e = enemiesInfo.getMapIterator();
@@ -160,7 +162,7 @@ public class Diablo extends TeamRobot
 	    	    double absbearing_rad = (getHeadingRadians()+en.bearing)%(2*PI);
 	    	    enX = getX()+Math.sin(absbearing_rad)*en.distance;
 	    	    enY = getY()+Math.cos(absbearing_rad)*en.distance;
-				p = new GravPoint(enX,enY, -1000);
+				p = new RoboUtils.GravPoint(enX,enY, -1000);
 		        force = p.power/Math.pow(RoboUtils.getRange(getX(),getY(),p.x,p.y),2);
 		        //Find the bearing from the point to us
 		        ang = RoboUtils.normaliseBearing(Math.PI/2 - Math.atan2(getY() - p.y, getX() - p.x)); 
@@ -178,7 +180,7 @@ public class Diablo extends TeamRobot
     	    double absbearing_rad = (getHeadingRadians()+en.bearing)%(2*PI);
     	    enX = getX()+Math.sin(absbearing_rad)*en.distance;
     	    enY = getY()+Math.cos(absbearing_rad)*en.distance;
-				p = new GravPoint(enX,enY, -1000);
+				p = new RoboUtils.GravPoint(enX,enY, -1000);
 		        force = p.power/Math.pow(RoboUtils.getRange(getX(),getY(),p.x,p.y),2);
 		        //Find the bearing from the point to us
 		        ang = RoboUtils.normaliseBearing(Math.PI/2 - Math.atan2(getY() - p.y, getX() - p.x)); 
@@ -187,6 +189,11 @@ public class Diablo extends TeamRobot
 		        yforce += Math.cos(ang) * force;
 			}
 	    }
+    	
+    	/** Creating a line o gravity points representing the bullets detected by the robot **/
+    	Object[] bforces = bulletsInfo.getForce();
+    	xforce += (double) bforces[0];
+    	yforce += (double) bforces[1];
 		
 	    
 		/**The next section adds a middle point with a random (positive or negative) strength.
@@ -197,7 +204,7 @@ public class Diablo extends TeamRobot
 			midpointcount = 0;
 			midpointstrength = (Math.random() * 2000) - 1000;
 		}
-		p = new GravPoint(getBattleFieldWidth()/2, getBattleFieldHeight()/2, midpointstrength);
+		p = new RoboUtils.GravPoint(getBattleFieldWidth()/2, getBattleFieldHeight()/2, midpointstrength);
 		force = p.power/Math.pow(RoboUtils.getRange(getX(),getY(),p.x,p.y),1.5);
 	    ang = RoboUtils.normaliseBearing(Math.PI/2 - Math.atan2(getY() - p.y, getX() - p.x)); 
 	    xforce += Math.sin(ang) * force;
@@ -244,13 +251,4 @@ public class Diablo extends TeamRobot
 	    return dir;
 	}
 	
-	
-	class GravPoint {
-	    public double x,y,power;
-	    public GravPoint(double pX,double pY,double pPower) {
-	        x = pX;
-	        y = pY;
-	        power = pPower;
-	    }
-	}
 }

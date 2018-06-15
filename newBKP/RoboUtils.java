@@ -2,6 +2,27 @@ import java.util.Enumeration;
 
 public class RoboUtils {
 	
+	static public class Point {
+		public double x, y;
+		Point() {
+			x = y = 0;
+		}
+		
+		Point(double X, double Y) {
+			this.x = X;
+			this.y = Y;
+		}
+	}
+	
+	/**Holds the x, y, and strength info of a gravity point**/
+	static public class GravPoint {
+	    public double x,y,power;
+	    public GravPoint(double pX,double pY,double pPower) {
+	        x = pX;
+	        y = pY;
+	        power = pPower;
+	    }
+	}
 
 
 	static final double PI = Math.PI;
