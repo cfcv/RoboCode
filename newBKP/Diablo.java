@@ -23,7 +23,7 @@ public class Diablo extends TeamRobot
 			bulletsInfo.updateBullets();
 			sweep();
 			antiGravMove();
-			//chooseEnemyToFire();
+			chooseEnemyToFire();
 			//setAhead(10);
 			execute();
 		}
@@ -35,14 +35,14 @@ public class Diablo extends TeamRobot
 		else	{
 			if (enemiesInfo.getRobot(e.getName()) != null) {
 				RobotsInfo.Enemy en = enemiesInfo.getRobot(e.getName());
-				double energyDiff = e.getEnergy() - en.energy;
+				double energyDiff = en.energy - e.getEnergy();
 				if (energyDiff > 0.0 && energyDiff <= 3.0) { 
 					bulletsInfo.addBullet(e, energyDiff);
 					System.out.println("Enemy " + e.getName() + " shot");
 				}
 			}
 			enemiesInfo.addRobotEvent(e);
-			System.out.println("Enemy " + e.getName() + " scanned");
+			//System.out.println("Enemy " + e.getName() + " scanned");
 		}
 	}
 	
@@ -115,9 +115,9 @@ public class Diablo extends TeamRobot
 	            
 	            enemiesInfo.clearHash();
 	            notChangedDirection = 0;
-	            if (number_of_robots > 2 && rounds * 20 < 270)
+	            if (number_of_robots > 2 && rounds * 45 < 270)
 	                radarDirection = (radarDirection == 1) ? 0 : 1;     
-	            else if (number_of_robots == 2 && rounds * 20 < 180)
+	            else if (number_of_robots == 2 && rounds * 45 < 180)
 	                radarDirection = (radarDirection == 1) ? 0 : 1;
 	            else
 	            	notChangedDirection = 1;

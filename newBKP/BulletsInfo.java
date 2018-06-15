@@ -9,19 +9,24 @@ public class BulletsInfo {
 	public class Bullet {
 		String owner;
 		public double x, y, direction, firepower, speed;
+		//double coef, constant;
 		public int turnsAlive;
 		public Vector<RoboUtils.GravPoint> gravPoints;
+		public RoboUtils.Point impact_point;
 		
 		Bullet() {
 			gravPoints = new Vector<RoboUtils.GravPoint>();
 		}
 		
-		public void addGravPoints() {
-			// Adiciona uma "linha"de gravpoints seguindo a trajetória prevista da bala
-			for (int i = 1; i < turnsAlive ; i++) {
-				RoboUtils.GravPoint g = new RoboUtils.GravPoint((x + i*Math.sin(direction)*speed), (y + i*Math.cos(direction)*speed), -500);
-				gravPoints.addElement(g);
-			}
+		private RoboUtils.Point closestPointToLine() {
+			double[] P1P2 = {impact_point.x - x, impact_point.y - y};
+			double[] P1V = {self.getX() - x, self.getY() - y};
+			
+			double sqrP1P2 = Math.pow(P1P2[0], 2) + Math.pow(P1P2[1], 2);
+			double P1P2_dot_P1V = P1P2[0]*P1V[0] + P1P2[1]*P1V[1];
+			double d = P1P2_dot_P1V/sqrP1P2;
+			
+			return new RoboUtils.Point(x + P1P2[0]*d, y + P1P2[1]*d );
 		}
 	}
 	
@@ -39,15 +44,21 @@ public class BulletsInfo {
 		Iterator<Bullet> it = bullets.iterator();
 		while (it.hasNext()) {
 			Bullet b = it.next();
-			Iterator<RoboUtils.GravPoint> g_it = b.gravPoints.iterator();
+			RoboUtils.Point intersec_p = b.closestPointToLine();
+			double force = -1000/Math.pow(RoboUtils.getRange(self.getX(), self.getY(), intersec_p.x, intersec_p.y), 2);
+			double ang = RoboUtils.normaliseBearing(Math.PI/2 - Math.atan2(self.getY() - intersec_p.y, self.getX() - intersec_p.x));
+			Xforce += Math.sin(ang) * force;
+			Yforce += Math.cos(ang) * force;
+			/*Iterator<RoboUtils.GravPoint> g_it = b.gravPoints.iterator();
 			while (g_it.hasNext()) {
 				RoboUtils.GravPoint gp = g_it.next();
+				
 				double force = gp.power/Math.pow(RoboUtils.getRange(self.getX(), self.getY(), gp.x, gp.y), 2);
-				double ang = RoboUtils.normaliseBearing(Math.PI/2 - Math.atan2(self.getY() - gp.y, self.getX() - gp.x));
+				//double ang = RoboUtils.normaliseBearing(Math.PI/2 - Math.atan2(self.getY() - gp.y, self.getX() - gp.x));
 				
 				Xforce += Math.sin(ang) * force;
 				Yforce += Math.cos(ang) * force;
-			}
+			}*/
 		}
 		return new Object[] {Xforce, Yforce} ;
 	}
@@ -59,9 +70,6 @@ public class BulletsInfo {
 			b.turnsAlive -= 1;
 			if (b.turnsAlive == 0)
 				it.remove();
-			else {
-				b.gravPoints.remove(0);
-			}
 		}
 	}
 	
@@ -79,14 +87,14 @@ public class BulletsInfo {
 		// Falta definir o ponto de intersecção da bala com a borda do mapa, e em quantos turnos isso irá ocorrer
 		// Define a equação da reta prevista como rota da bala
 		
-		RoboUtils.Point p = checkIntersectionPointWithBorder(b);
+		b.impact_point = checkIntersectionPointWithBorder(b);
+		System.out.println("shot direction: " + Math.toDegrees(b.direction));
+		System.out.println("bullet will colide in point: (" + b.impact_point.x + ", " + b.impact_point.y + ")");
 		
-		double dist = RoboUtils.getRange(p.x, p.y, b.x, b.y);
+		double dist = RoboUtils.getRange(b.impact_point.x, b.impact_point.y, b.x, b.y);
 		
 		b.turnsAlive = (int) Math.floor(dist/b.speed);
-		
-		b.addGravPoints();
-		
+				
 		bullets.add(b);
 	}
 	
@@ -114,40 +122,25 @@ public class BulletsInfo {
 			// coeficientes para a eq. da reta x = ay + b
 			double a2 = Math.tan(bul.direction);
 			double c2 = bul.x - a2*bul.y;
-			// Se a direção está entre 45 e 225 graus, então só é necessário checar intersecção com a borda inferior e a borda direita
-			if (bul.direction >= Math.PI/4.0 && bul.direction < Math.PI + Math.PI/4.0) {
-				// Horizontal inferior
-				double hX = (-c1)/a1;
-				double hY = 0;
-				
+			if (bul.direction >= Math.PI/4.0 && bul.direction < Math.PI/2.0 + Math.PI/4.0) {
 				// Vertical direita
-				double vX = self.getBattleFieldWidth();
-				double vY = (self.getBattleFieldWidth() - c2)/a2;
-				// Pega a colisão válida.
-				if (hX <= self.getBattleFieldWidth()) {
-					p.x = hX;
-					p.y = hY;
-				} else {
-					p.x = vX;
-					p.y = vY;
-				}
-			} // Se não, basta checar intersecção com a borda superior e a borda esquerda
+				p.x = self.getBattleFieldWidth();
+				p.y = (self.getBattleFieldWidth() - c2)/a2;
+			}
+			else if (bul.direction >= Math.PI/2.0 + Math.PI/4.0 && bul.direction < Math.PI + Math.PI/4.0) {
+				// Horizontal inferior
+				p.x = (-c1)/a1;
+				p.y = 0;
+			}
+			else if (bul.direction >= Math.PI + Math.PI/4.0 && bul.direction < Math.PI*3.0/2.0 + Math.PI/4.0){
+				// Vertical esquerda
+				p.x = 0;
+				p.y = (-c2)/a2;
+			}
 			else {
 				// Horizontal superior
-				double hX = (self.getBattleFieldHeight() - c1)/a1;
-				double hY = self.getBattleFieldHeight();
-				
-				// Vertical esquerda
-				double vX = 0;
-				double vY = (-c2)/a2;
-				if (hX >= 0) {
-					p.x = hX;
-					p.y = hY;
-				} else {
-					p.x = vX;
-					p.y = vY;
-				}
-				
+				p.x = (self.getBattleFieldHeight() - c1)/a1;
+				p.y = self.getBattleFieldHeight();	
 			}
 			
 		}
