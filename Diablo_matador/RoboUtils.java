@@ -1,3 +1,4 @@
+package Diablo_matador;
 import java.util.Enumeration;
 
 public class RoboUtils {
@@ -54,7 +55,7 @@ public class RoboUtils {
 		return h;	
 	}
 	
-	//gets the absolute bearing between to x,y coordinates
+	//gets the absolute bearing between two x,y coordinates
 	static public double absbearing( double x1,double y1, double x2,double y2 )
 	{
 		double xo = x2-x1;
@@ -77,6 +78,18 @@ public class RoboUtils {
 			return 2.0*Math.PI - Math.asin( -xo / h );
 		}
 		return 0;
+	}
+	
+	Point closestPointToLine(Point P1, Point P2, Point V) {
+		double[] P1P2 = {P1.x - P2.x, P1.y - P2.y};
+		double[] P1V = {P1.x - V.x, P1.y - V.y};
+		
+		double sqrP1P2 = Math.pow(P1P2[0], 2) + Math.pow(P1P2[1], 2);
+		double P1P2_dot_P1V = P1P2[0]*P1V[0] + P1P2[1]*P1V[1];
+		//Normalized distance (0..1) of P1 to the closest point
+		double d = P1P2_dot_P1V/sqrP1P2;
+		
+		return new RoboUtils.Point(P1.x + P1P2[0]*d, P1.y + P1P2[1]*d );
 	}
 	
 

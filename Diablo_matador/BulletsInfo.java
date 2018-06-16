@@ -1,3 +1,4 @@
+package Diablo_matador;
 import java.util.Iterator;
 import java.util.Vector;
 
@@ -6,7 +7,7 @@ import robocode.ScannedRobotEvent;
 
 public class BulletsInfo {
 	
-	public class Bullet {
+	static public class Bullet {
 		String owner;
 		public double x, y, direction, firepower, speed;
 		//double coef, constant;
@@ -18,12 +19,13 @@ public class BulletsInfo {
 			gravPoints = new Vector<RoboUtils.GravPoint>();
 		}
 		
-		private RoboUtils.Point closestPointToLine() {
+		public RoboUtils.Point closestPointToLine(AdvancedRobot self) {
 			double[] P1P2 = {impact_point.x - x, impact_point.y - y};
 			double[] P1V = {self.getX() - x, self.getY() - y};
 			
 			double sqrP1P2 = Math.pow(P1P2[0], 2) + Math.pow(P1P2[1], 2);
 			double P1P2_dot_P1V = P1P2[0]*P1V[0] + P1P2[1]*P1V[1];
+			// Normalized distance (0..1) of P1 to the closest point
 			double d = P1P2_dot_P1V/sqrP1P2;
 			
 			return new RoboUtils.Point(x + P1P2[0]*d, y + P1P2[1]*d );
@@ -44,21 +46,11 @@ public class BulletsInfo {
 		Iterator<Bullet> it = bullets.iterator();
 		while (it.hasNext()) {
 			Bullet b = it.next();
-			RoboUtils.Point intersec_p = b.closestPointToLine();
-			double force = -1000/Math.pow(RoboUtils.getRange(self.getX(), self.getY(), intersec_p.x, intersec_p.y), 2);
+			RoboUtils.Point intersec_p = b.closestPointToLine(self);
+			double force = -800/Math.pow(RoboUtils.getRange(self.getX(), self.getY(), intersec_p.x, intersec_p.y), 2);
 			double ang = RoboUtils.normaliseBearing(Math.PI/2 - Math.atan2(self.getY() - intersec_p.y, self.getX() - intersec_p.x));
 			Xforce += Math.sin(ang) * force;
 			Yforce += Math.cos(ang) * force;
-			/*Iterator<RoboUtils.GravPoint> g_it = b.gravPoints.iterator();
-			while (g_it.hasNext()) {
-				RoboUtils.GravPoint gp = g_it.next();
-				
-				double force = gp.power/Math.pow(RoboUtils.getRange(self.getX(), self.getY(), gp.x, gp.y), 2);
-				//double ang = RoboUtils.normaliseBearing(Math.PI/2 - Math.atan2(self.getY() - gp.y, self.getX() - gp.x));
-				
-				Xforce += Math.sin(ang) * force;
-				Yforce += Math.cos(ang) * force;
-			}*/
 		}
 		return new Object[] {Xforce, Yforce} ;
 	}
@@ -68,9 +60,39 @@ public class BulletsInfo {
 		while (it.hasNext()) {
 			Bullet b = it.next();
 			b.turnsAlive -= 1;
-			if (b.turnsAlive == 0)
+			if (b.turnsAlive == 0) {
+				System.out.println("bullet removed");
 				it.remove();
+				
+			}
 		}
+	}
+	
+	public void addBullet(RobotsInfo.Enemy en, double diff) {
+		Bullet b = new Bullet();
+		b.owner = en.name;
+		double absbearing_rad = (self.getHeadingRadians()+en.bearing)%(2*RoboUtils.PI);
+		b.x = self.getX()+Math.sin(absbearing_rad)*en.distance;
+		b.y = self.getY()+Math.cos(absbearing_rad)*en.distance; 
+		
+		CircularIntercept interception = new CircularIntercept();
+		
+		interception.calculate(b.x, b.y, self.getX(), self.getY(), Math.toDegrees(self.getHeading()), self.getVelocity(),
+				diff, Math.toDegrees(((Diablo)self).angular_velocity));
+		
+		b.direction = Math.toRadians(interception.bulletHeading_deg);
+		b.firepower = diff;
+		b.speed = 20.0 - 3.0*b.firepower;
+		double width = self.getBattleFieldWidth();
+		double height = self.getBattleFieldHeight();
+		// Calcula  o ponto em que a bala irá colidir com a borda.
+		b.impact_point = checkIntersectionPointWithBorder(b);
+		
+		double dist = RoboUtils.getRange(b.impact_point.x, b.impact_point.y, b.x, b.y);
+		
+		b.turnsAlive = (int) Math.floor(dist/b.speed);
+				
+		bullets.add(b);
 	}
 	
 	public void addBullet(ScannedRobotEvent event, double diff) {
@@ -79,17 +101,17 @@ public class BulletsInfo {
 		double absbearing_rad = (self.getHeadingRadians()+event.getBearingRadians())%(2*RoboUtils.PI);
 		b.x = self.getX()+Math.sin(absbearing_rad)*event.getDistance();
 		b.y = self.getY()+Math.cos(absbearing_rad)*event.getDistance(); 
-		b.direction = RoboUtils.absbearing(b.x, b.y, self.getX(), self.getY());
+		
+		Intercept interception = new Intercept();
+		interception.calculate(b.x, b.y, self.getX(), self.getY(), self.getHeading(), self.getVelocity(), diff, 0);
+		
+		b.direction = Math.toRadians(interception.bulletHeading_deg);
 		b.firepower = diff;
 		b.speed = 20.0 - 3.0*b.firepower;
 		double width = self.getBattleFieldWidth();
 		double height = self.getBattleFieldHeight();
-		// Falta definir o ponto de intersecção da bala com a borda do mapa, e em quantos turnos isso irá ocorrer
-		// Define a equação da reta prevista como rota da bala
-		
+		// Calcula  o ponto em que a bala irá colidir com a borda.
 		b.impact_point = checkIntersectionPointWithBorder(b);
-		System.out.println("shot direction: " + Math.toDegrees(b.direction));
-		System.out.println("bullet will colide in point: (" + b.impact_point.x + ", " + b.impact_point.y + ")");
 		
 		double dist = RoboUtils.getRange(b.impact_point.x, b.impact_point.y, b.x, b.y);
 		

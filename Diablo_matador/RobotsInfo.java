@@ -1,3 +1,4 @@
+package Diablo_matador;
 import java.awt.geom.Point2D;
 import java.util.Collection;
 import java.util.HashMap;
@@ -13,7 +14,7 @@ public class RobotsInfo {
 	
 	public class Enemy {
 		public String name;
-		public double bearing, heading, speed, x, y, distance, changehead;
+		public double bearing, heading, speed, x, y, distance, changehead, energy;
 		public long ctime; 		//
 		public boolean live;
 		public boolean readed;
@@ -55,6 +56,12 @@ public class RobotsInfo {
 		return mapaNomes.values().iterator();
 	}
 	
+	public Enemy removeRobot(String name) {
+		Enemy r = mapaNomes.remove(name);
+		recalculateClosestRobot();
+		return r;
+	}
+	
 	public void addRobotEvent(ScannedRobotEvent event) {
 		// Add new robot or update existing entry
 		String robotName = event.getName();
@@ -81,6 +88,7 @@ public class RobotsInfo {
 		en.ctime = self.getTime();				//game time at which this scan was produced
 		en.speed = event.getVelocity();
 		en.distance = event.getDistance();	
+		en.energy = event.getEnergy();
 		en.live = true;
 
 		mapaNomes.put(robotName, en);
@@ -91,6 +99,50 @@ public class RobotsInfo {
 			// Recalcula o closestRobot
 			closestRobot = recalculateClosestRobot();
 		}
+	}
+	
+	public void addReceivedRobotEvent(ScannedRobotEvent event, Enemy sender) {
+		// Add new robot or update existing entry
+				String robotName = event.getName();
+				Enemy en = new Enemy();
+				
+				if (mapaNomes.get(robotName) != null) {
+					en = mapaNomes.get(robotName);
+					if(!en.readed) {
+						this.readedRobots += 1;
+						en.readed = true;
+					}
+				}
+				
+				double absbearing_rad = (sender.heading+event.getBearingRadians())%(2*RoboUtils.PI);
+				//this section sets all the information about our target
+				en.name = event.getName();
+				double h = RoboUtils.normaliseBearing(event.getHeadingRadians() - en.heading);
+				h = h/(self.getTime() - en.ctime);
+				en.changehead = h;
+				en.x = sender.x + Math.sin(absbearing_rad)*event.getDistance(); //works out the x coordinate of where the target is
+				en.y = sender.y + Math.cos(absbearing_rad)*event.getDistance(); //works out the y coordinate of where the target is
+				en.bearing = RoboUtils.absbearing(self.getX(), self.getY(), en.x, en.y);
+				en.heading = event.getHeadingRadians();
+				en.ctime = self.getTime();				//game time at which this scan was produced
+				en.speed = event.getVelocity();
+				en.distance = RoboUtils.getRange(self.getX(), self.getY(), en.x, en.y);	
+				en.energy = event.getEnergy();
+				en.live = true;
+
+				mapaNomes.put(robotName, en);
+				
+				if (closestRobot == null)
+					closestRobot = en;
+				else {
+					// Recalcula o closestRobot
+					closestRobot = recalculateClosestRobot();
+				}
+	}
+	
+	public void addEnemy(Enemy enemy) {
+		mapaNomes.put(enemy.name, enemy);
+		return;
 	}
 	
 	private Enemy recalculateClosestRobot() {
@@ -122,6 +174,8 @@ public class RobotsInfo {
 	
 	public void updateRobotDeath(RobotDeathEvent event) {
 		Enemy en = getRobot(event.getName());
+		if (en == null)
+			return;
 		en.live = false;
 		System.out.println("robot " + event.getName() + " morreu e foi atualizado na hash.");
 		

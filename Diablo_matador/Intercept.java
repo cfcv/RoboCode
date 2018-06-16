@@ -1,3 +1,4 @@
+package Diablo_matador;
 import robocode.*;
 
 public class Intercept {
